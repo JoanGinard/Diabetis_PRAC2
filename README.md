@@ -16,16 +16,16 @@ L'objectiu de la pràctica és *************************************************
 
 ## FITXERS DEL REPOSITORI
 
-1. *******************
-2. *******************
-3. *******************
+1. EstudiDiabetis.Rmd: Arxiu en R markdown amb les comandes de R i els comentaris i a partir del qual es genera l'informe en PDF.
+2. EstudiDiabetis.pdf: Informe de la pràctica propiament dit
+3. dadesDiabetis.csv: Arxiu csv amb les dades ja netejades i preparades per a la part d'anàlisi.
 
-__Dins la carpeta data__
+__Dins la carpeta dataset_diabetes__
 
-4. ******************* 
-5. *******************
+4. diabetic_data: Dades originals segons s'han descarregat.
+5. IDs_mapping.csv: Conté l'explicació dels codis de certs camps del joc de dades.
 
-## EXECUCIÓ DE L'SCRIPT
+## ORIGEN DE LES DADES
 
 ## BIBLIOGRAFIA
 
