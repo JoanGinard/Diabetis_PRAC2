@@ -1,0 +1,1158 @@
+---
+title: "Pràctica 2 Tipologia i cicle de vida de les dades"
+author: 
+- Joan Ginard 
+- Miquel Piña
+date: '`r format(Sys.time(), "%d - %m - %Y")`'
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+    toc_float: true
+    theme: spacelab
+  word_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+  pdf_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+urlcolor: blue #Links en color blau
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(caret)
+library(randomForest)
+```
+
+
+
+# Descripció del dataset
+
+Hem triat un joc de dades disponible al conegut repositori de dades [d'UCI](https://archive.ics.uci.edu/ml/index.php), en concret el que du per nom ["diabetes-130-US hospitals for years 1999-2008 Data set"](https://archive.ics.uci.edu/ml/datasets/diabetes+130-us+hospitals+for+years+1999-2008), a algunes bandes anomenat diabetes-130. S'ha de distingir aquest joc de dades sobre diabetis d'un altre prou conegut que es diu PIMA ó PIMA-INDIANS
+
+El joc de dades conté 101766 observacions i 50 variables i es corresponen a dades de pacients ingressats a un Hospital i que padeixen diabetis, però aquesta afecció no és, en general, la causa de l'ingrés. Es a dir, el joc de dades fa seguiment d'un grup de pacients que a banda del motiu pirncipal de l'ingrés tenen diabetis.
+
+Les dades procedeixen de diferents hopsital dels EUA i recollides entre els anys 1999 i 2008.
+
+L'__objectiu__, el problema que es vol resoldre, és ser capaç de trobar un model que ens pugui predir els pacients que tornaran a ingressar.
+
+Els atributs que component el dataset són els següents (tot i que traduïm els valors que poden prendre els atributs, estan en anglès a l'original):
+<ol>
+
+1. __encounter_id__: identificador de la visita/ingrés.
+2. __patient_nbr__: identificador del pacient.
+3. __race__: Origen ètnic del pacient: Caucàssic, Asiàtic, Africà-Americà, Hispà i altres.
+4. __gender__: masculí, femení i desconegut/no-válid.
+5. __age__: Edat agrupada en intervals de 10 anys.
+6. __weight__: Pes del pacient en lliures.
+7. __admission_type_id__: Codi (nº enter) que identifica el motiu d'admissió, per exemple, urgència, programat, nou-nat.
+8. __discharge_disposition_id__: Codi (nº enter) que identifica el motiu d'abandonament de l'hospital, per exemple, alta a casa, exitus, alta amb atenció mèdica.
+9. __admission_source_id__: Codi (nº enter) que identifica la font d'admissió, per exemple, urgència, trasllat d'un altre hospital, recomanació mèdica.
+10. __time_in_hospital__: Número de dies des de l'ingrés fins que abandona l'hospital
+11. __payer_code__: Codi (nº enter) que identifica el tipus d'assegurança del pacient
+12. __medical_specialty__: Especialitat del metge que atendrà al pacient: cardiologia, cirurgià...
+13. __num_lab_procedures__: Número de proves de laboratori que es fan al pacient durant l'estada.
+14. __num_procedures__: Número de procediments, diferents de test de laboratori, que es fan al pacient durant l'estada.
+15. __num_medications__: Número de medicacions *diferents* que s'administren al pacient durant l'estada.
+16. __number_outpatient__: Número de visites mèdiques del pacient l'any anterior a l'ingrés.
+17. __number_emergency__: Número de visites del pacient a urgències l'any anterior a l'ingrés.
+18. __number_inpatient__: Número d'ingressos hospitalaris del pacient l'any anterior a l'ingrés
+19. __diag_1__, __diag_2__ i __diag_3__: Són tres atributs corresponents a diagnóstics del pacient, diag_1 seria el diagnòstic primari i els altres dos diagnóstics secundaris. Estan codificats segons uns codis estandarditzats.
+20. __number_diagnoses__: Número de diagnòstics que consten al sistema.
+21. __max_glu_serum__: Resultats del test de glucosa. Expressat com "normal", ">200", ">300" o "none" si no es va fer o no consta la mesura
+22. __A1Result__: Resultat de la prova de hemoglobina glicosilada. Expressat en valors com ">8" (major del 8%), ">7" (que indica major que 7% però menor que 8%), "normal" i "none" si no es va fer o no consta.
+23. __Conjunt de MEDICACIONS__: Al dataset ara tenim tot un seguit de medicacions (24) relacionades amb la diabetes i on figura si la dosi es puja, es maté o es baixa o si no es pren el medicament. Com veurem més endavant la major part de medicacions apenes si tenen variació i en molts casos els pacients no en prenen.
+24. __change__: Indica si va haver algun canvi en les medicacions relacionades amb la diabetis.
+25. __diabetesMed__ : Indica si el pacient pren alguna medicació contra la diabetis.
+26. __readmitted__: Dies fins a la readmissió del pacient a l'hospital. Dividit en tres valors: "<30" si reingressa en menys de 30 dies, ">30", si tarda més de 30 dies i "No" en cas de que no hagi registre de readmissió. Aquest seguiment es va fer durant 1 any, per tant un ingrés de ">30" és un ingrés entre un mes després i un any després de l'alta
+
+
+Els codis als que fan referència els atributs 7, 8 i 9 es troben a un arxiu separat anomenat *IDs_mapping.csv* i que es descarrega juntament amb el dataset a la pàgina indicada.
+
+Els diagnòstics (atributs *diag_1*, *diag_2* i *diag_3*) estan codificats per tres xifres (i si és necessari un punt i una o dues xifres més) segons un manual de codficació estàndar i que per exemple es pot consultar [aquí](https://www.mscbs.gob.es/estadEstudios/estadisticas/docs/Manual_de_codificacion.pdf)
+
+Donada la naturalesa de les dades hem consultat moltes informacions a metges del nostre entorn, per tal d'aclarir o entendre alguns detalls.
+        
+</ol>
+
+# Integració i selecció de les dades d'interés a analitzar
+
+Recordem que el nostre objectiu es tractar de predir el possible reingrés dels pacients del joc de dades a partir de les diferents dades que tenim.
+
+Donada l'enorme quantitat de variables que tenim està clar que haurem de realitzar una selecció dels atributs a considerar però aquesta selecció s'haurà de realitzar durant el procés de neteja de les dades, donat que, com veurem, atributs que *a priori* resulten molt importants com el pes estan bàsicament buits. No obstant ja podem veure que dades com l'identificador del pacient o de la visita/ingrés no resultaran interessants, ni tampoc l'assegurança del pacient.
+
+També farem constrat d'hipòtesis per veure si determinats factors com el sexe o la medicació de la diabetes peresenten una proporció major de reingrés.
+
+Una altra cosa a considerar és la divisió de la variable readmissió en tres factors: menys de 30 dies, més de 30 i no readmissió. Habitualment la divisió és menys de 30 dies o no readmissió, donat que si la readmissió és posterior al mes no sempre es considera relacionada.
+
+
+
+
+# Neteja de les dades
+
+
+Procedim a carregar les dades del csv i veiem els diferents atributs
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#Carreguem les dades
+
+dataDiabetes <- read.csv("dataset_diabetes/diabetic_data.csv")
+
+#Observem els camps que tenim
+str(dataDiabetes)
+
+
+```
+\  
+
+Sembla que els camps buits s'assenyalen amb un "?". Aprofitem per canviar els "?" per NAs
+
+```{r}
+dataDiabetes[dataDiabetes == "?"] <- NA
+```
+
+
+
+__IDs de pacients i visites__
+
+Com hem comentat els identificadors dels pacients no ens resulten interessants però abans d'eliminar els atributs, hem d'observar si tenim pacients repetits. 
+
+```{r, echo = TRUE, message = FALSE, warning= FALSE}
+
+length(unique(dataDiabetes$patient_nbr))
+```
+\  
+
+Veiem que efectivament tenim 101766 registres però nomes 71518 pacients. Aquestes visites o ingressos repetits no es poden considerar independents que és una de les suposicions habituals de molts models, per tant ens quedem només amb una ocurrència de cada pacient i eliminem els camps d'identificació i de tipus d'assegurança del pacient
+
+
+```{r, echo = TRUE, message = FALSE, warning= FALSE}
+
+#Aprofitem per passar les dades a un nou dataframe amb el que farem feina
+dades <- dataDiabetes[!duplicated(dataDiabetes$patient_nbr),]
+
+dades$encounter_id <- NULL
+dades$patient_nbr <- NULL
+dades$payer_code <- NULL
+
+```
+
+
+## Tractament de zeros i elements buits
+
+Fem una exploració dels camps que tenen valors buits
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+colSums(is.na(dades)) #Número de valors a cada columna
+
+
+
+```
+\  
+
+__PES I ESPECIALITAT__
+
+Observem que el pes està gairebé completament buit i medical_speciality està buit a mitges.
+
+Tot i que es veu prou bé mostrem el percentatge de valors buits en aquests dos casos. 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+perc <- 100*sum(is.na(dades$weight))/nrow(dades)
+print(sprintf("El percentatge de valors buits al pes és: %.2f%%", perc))
+
+
+perc<- 100*sum(is.na(dades$medical_specialty))/nrow(dades)
+print(sprintf("El percentatge de valors buits a l'especialitat és: %.2f%%", perc))
+
+```
+\  
+
+El pes és un atribut amb un 96% de valors buits, cosa que resulta molt estranya perquè la diabetis en adults està molt associada a l'excés de pes i l'obesitat. No obstant l'article original que estudia el joc de dades (Strack et al. (2014), veure bilbiografia) assenyala que fins al 2009 els hospitals no estaven obligats a recollir aquesta dada en un format estructurat. Podria haver estat un atribut important però haurem de prescindir d'ell,
+
+Mentre que a l'article esmentat es decideix substituir els valors nuls de l'especialitat mèdica per un valor "desconegut", nosaltres considerem que són massa valors per fer això, ja que generaria una categoria amb "dret propi" per dir-ho d'alguna manera. 
+També hem pensat que ni sabem ni podem saber si aquests valors es corresponen sobretot a unes poques especialitats o més aviat es distribuieixen més uniformement, per tant, al igual que el pes, tot i que podria ser una característica important, no podem mantenir la variable
+
+```{r}
+
+dades$weight <- NULL
+dades$medical_specialty <- NULL
+
+```
+
+__DIAGNÒSTICS__
+
+Observem que tenim 11 valors absents al diagnòstic primari (*diag_1*), observem aquests valors juntament amb els diagnòstics secundaris
+
+```{r}
+dades[is.na(dades$diag_1), c("diag_1", "diag_2", "diag_3")]
+```
+\  
+
+Com en aquests valors falta el diagnóstic primari, però no els secundaris, no ens queda més que concloure que són valors perduts. Podríem fer hipòstesi sobre si les dades es van introduir malament i en realitat el diagnóstic seucndari és el primari, però són tan pocs valors que simplement eliminem els registres corresponents
+
+```{r}
+dades <- dades[!is.na(dades$diag_1),]
+```
+\  
+
+Els diagnòstics secundaris poden estar presents o no, per tant que hagi valors buits no és un problema.
+
+__RAÇA__
+
+En aquesta variable tenim 1948 valors buits que, de moment, desarem com a "desconeguts". En el següent apartat el tractarem amb més detall
+
+```{r}
+dades$race[is.na(dades$race)] <- "desconegut"
+
+
+```
+
+
+__ALTRES__
+
+Un altre tipus de dades "absents" són aquelles marcades als camps "admission_type_id", "discharge_dispostion_id" i "admission_source_id" amb el codi corresponent al valor: NULL, Not Available, Unknown/Invalid...
+
+Mirem quantes dades d'aquest tipus tenim
+
+```{r, echo = TRUE, message = FALSE, warning= FALSE}
+
+abs <- sum(dades$admission_type_id == "6" | dades$admission_type_id == "8" | dades$admission_type_id == "5" )
+print(sprintf("Dades que es poden considerar absents a admission_source_id: %i ", abs))
+
+abs <- sum(dades$discharge_disposition_id == "18" | dades$discharge_disposition_id == "25" | dades$discharge_disposition_id == "26")
+print(sprintf("Dades que es poden considerar absents a discharge_disposition: %i ", abs))
+
+abs <- sum(dades$admission_source_id == "17" | dades$admission_source_id == "20" | dades$admission_source_id == "9" | dades$admission_source_id == "15" | dades$admission_source_id == "21")
+print(sprintf("Dades que es poden considerar absents a admission_source_id: %i ", abs))
+
+```
+\  
+
+És un nombre no menyspreable de dades. A una fase posterior considerarem que fem amb ells, ja que segurament haurem de fer agrupament de categories.
+
+
+## Identificació de valors extrems
+
+Fem boxplots dels atributs numèrics (a tenir en compte que alguns camps són numèrics però representen codis)
+
+```{r}
+dades_numeriques <- select(dades, c("num_lab_procedures", "num_procedures", "num_medications", "number_outpatient", "number_emergency", "number_inpatient", "number_diagnoses", "time_in_hospital") )
+
+#Preparem el dataframe per fer el gràfic amb ggplot
+stacked_df <- stack(dades_numeriques)
+
+#Fem la gràfica, ajustem alguns paràmetres com la ortientació del text a l'eix i els títols
+ggplot(stacked_df, aes(x = ind, y = values, color = ind ))+geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5), 
+        plot.title = element_text(hjust = 0.5, face = "bold"))+
+  labs(title = "BOXPLOT DE LES VARIABLES NUMÈRIQUES", x = "Variables", y = "Valors")
+
+```
+\  
+
+Les variables *number_outpatient*, *number_emergency* i *number_inpatient* semblen tenir molts de valors a zero o al voltant i segurament per això tenen tot un continu de valors fora del boxplot.
+
+A la resta d'atributs veiem que tenim punts fora dels "bigotis" del boxplot, però cap d'ells sembla que sigui una dada clarament errònia. 
+
+
+### Altres
+
+
+Tenim altres valors que no són buits o que no són extrems però que també haurem de tractar.
+
+Al camp gènere tenim alguns valors que són desconeguts o invalids
+
+```{r}
+table(dades$gender)
+```
+
+\  
+
+Són tan pocs que els llevem directament de les dades
+
+```{r}
+dades <- dades[!(dades$gender == "Unknown/Invalid"), ]
+```
+
+
+
+# Anàlisi de les dades
+
+## Selecció de grups de dades. Planificació de l'anàlisi.
+
+### Reducció de la dimensionalitat.
+
+__ATRIBUTS AMB POCA VARIACIÓ__
+
+En el joc de dades tenim moltes variables que gairebé no presenten variació sinó que la immensa majoria dels valors són el mateix.
+
+Anem a veure una representació d'alguns camps per a que es vegi a que ens referim
+
+```{r}
+p1 <- ggplot(dades, aes(x = number_inpatient))+geom_histogram()+ggtitle("Num. Ingressos previs")
+p2 <- ggplot(dades, aes(x = examide))+geom_bar()+ggtitle("Hexamida")
+p3 <- ggplot(dades, aes(x = discharge_disposition_id))+geom_bar()+ggtitle("Tipus Alta")
+p4 <- ggplot(dades, aes(x =glimepiride))+geom_bar()+ggtitle("Glimepirid")
+
+grid.arrange(p1,p2,p3,p4)
+
+
+```
+\  
+
+Això que es veu als gràfic passa a més atributs, fem servir la funció *nearzerovar()* de la llibreria *caret* per veure quins són els atributs no numèrics que bàsicament no varien i que, per tant, ja podem eliminar sense cap més anàlisi.
+
+
+```{r}
+
+#18:45
+dades_no_numeriques <- select(dades, -c("num_lab_procedures", "num_procedures", "num_medications", "number_outpatient", "number_emergency", "number_inpatient", "number_diagnoses") )
+ZV <- nearZeroVar(dades_no_numeriques[,], saveMetrics = TRUE)
+
+#Imprimir aquells valors que tenen variació gairebé zero.
+print(ZV[ZV$nzv == TRUE, c("zeroVar", "nzv")])
+
+#Guardem el noms dels valors en un vector per després
+nzv <- row.names(ZV[ZV$nzv==TRUE, ])
+
+
+
+```
+\  
+
+Procedim a llevar aquestes variables.
+
+```{r}
+dades <- select(dades, -all_of(nzv))
+```
+
+\  
+
+Aquesta funció només ens lleva variables que és molt clar que no varien, per tant encara queden algunes variables que varien molt poc, on la majoria dels valors són els mateixos.
+
+Anem a veure aquesta situació mitjançant una combinació de taules i gràfics
+
+```{r}
+p1 <- ggplot(dades, aes(x = number_outpatient))+geom_histogram()+ggtitle("Visites al metge")
+p2 <- ggplot(dades, aes(x =number_emergency))+geom_histogram()+ggtitle("Visites a urgències")
+grid.arrange(p1,p2)
+```
+\  
+Aquests dos camps, juntament amb el camp *number_inpatient* que hem representat abans no mostren gairebé variació i els eliminarem.
+
+Revisem també la resta de medicacions
+
+```{r}
+cols <- seq(19,24)
+
+df <- data.frame()
+
+for (i in cols) {
+    registre <- c((names(dades)[i]),table(dades[,i]))
+    df <-rbind(df,registre)
+    
+}
+
+colnames(df) <- c("Medicament", "Down", "No", "Steady", "Up")
+
+df
+
+```
+\  
+
+Notem com excepte en el cas de la insulina on hi ha certa varietat, la major part de medicacions no semblen administrar-se. I per tant també les llevarem.
+
+Finalment notem que tenim dues columnes *admission_type_id* i *admission_source_id* que s'assemblen molt. La primera té 8 codis que fan referència si el pacient ingresa per urgències o emergències (dos codis difetents), ho fa per elecció (es suposa que ingrés programat), és nounat, per un trauma o per motius desconeguts. Mentre que la segona inclou els mateixos o semblants però també si ve d'un altre hospital (i el tipus d'hospital) i altres. Per tant decidim eliminar el primer 
+
+
+
+```{r}
+cols_a_llevar <- c("number_outpatient", "number_inpatient", "number_emergency", "metformin", "glipizide", "glyburide", "pioglitazone",
+                   "rosiglitazone", "admission_type_id")
+
+dades <- select(dades, -all_of(cols_a_llevar))
+
+```
+
+### Reducció de la quantitat i dels factors
+
+A alguns atributs com a diagnòstics o tipus d'alta tenim un nombre molt elevat de categories que intentem reduir per tal que la informació quedi més agrupada i tingui més sentit
+
+Ens guiem per l'article original per reduir els codis dels diferents diagnòstics a categories més simples. Concretament fent servir aquesta [taula](https://www.hindawi.com/journals/bmri/2014/781670/tab2/).
+
+```{r}
+dades1 <- as.data.frame(dades) #Fem una còpia per si durant la realització de l'activitat necessitem tornar a repetir aquest punt.
+
+
+###Diagnòstic 1
+
+##Passem a factor la columna i desem els factors en una variable
+dades$diag_1 <- as.factor(dades$diag_1)
+cols <- levels(dades$diag_1)
+
+# Desem els diagnostics propis de la diabetes
+diag_diabet <- c("250", "250.01", "250.02", "250.03", "250.1"  ,"250.11", "250.12", "250.13", "250.2",  "250.21", "250.22", "250.23",
+ "250.3",  "250.31", "250.32", "250.33", "250.4",  "250.41" ,"250.42", "250.43", "250.5",  "250.51", "250.52", "250.53", "250.6", 
+ "250.7" , "250.8",  "250.81" ,"250.82" ,"250.83", "250.9",  "250.91", "250.92", "250.93")
+
+## Amb un bucle convertim tots els valors que corresponen a certs diagnòstic a la seva nova categoria.
+for (i in cols) {
+   if (i %in% as.character(seq(390,459)) | i == "785" ) {
+    levels(dades$diag_1)[levels(dades$diag_1) == i] <- "Circulatory"
+  } else if (i %in% as.character(seq(460,519))| i == "786"){
+     levels(dades$diag_1)[levels(dades$diag_1) == i] <- "Respiratory" 
+  } else if (i %in% as.character(seq(520,579))| i == "787"){
+    levels(dades$diag_1)[levels(dades$diag_1) == i] <- "Digestive"
+  } else if (i %in% diag_diabet){
+    levels(dades$diag_1)[levels(dades$diag_1) == i] <- "Diabetes"
+  } else if (i %in% as.character(seq(800,999))){
+    levels(dades$diag_1)[levels(dades$diag_1) == i] <- "Injury"
+  } else if (i %in% as.character(seq(710,739))){
+    levels(dades$diag_1)[levels(dades$diag_1) == i] <- "Musculoeskeletal"
+  } else if (i %in% as.character(seq(580,629))| i == "788"){
+    levels(dades$diag_1)[levels(dades$diag_1) == i] <- "Genitourinary"
+  } else if (i %in% as.character(seq(140,239))){
+    levels(dades$diag_1)[levels(dades$diag_1) == i] <- "Neoplasms"
+  } else{
+    levels(dades$diag_1)[levels(dades$diag_1) == i] <- "Other"
+                                         
+    
+    }
+}
+
+#Procedim de la mateixa manera amb els nous diagnostics
+###Diagnòstic 2
+
+dades$diag_2 <- as.factor(dades$diag_2)
+cols <- levels(dades$diag_2)
+
+for (i in cols) {
+   if (i %in% as.character(seq(390,459)) | i == "785" ) {
+    levels(dades$diag_2)[levels(dades$diag_2) == i] <- "Circulatory"
+  } else if (i %in% as.character(seq(460,519))| i == "786"){
+     levels(dades$diag_2)[levels(dades$diag_2) == i] <- "Respiratory" 
+  } else if (i %in% as.character(seq(520,579))| i == "787"){
+    levels(dades$diag_2)[levels(dades$diag_2) == i] <- "Digestive"
+  } else if (i %in% diag_diabet){
+    levels(dades$diag_2)[levels(dades$diag_2) == i] <- "Diabetes"
+  } else if (i %in% as.character(seq(800,999))){
+    levels(dades$diag_2)[levels(dades$diag_2) == i] <- "Injury"
+  } else if (i %in% as.character(seq(710,739))){
+    levels(dades$diag_2)[levels(dades$diag_2) == i] <- "Musculoeskeletal"
+  } else if (i %in% as.character(seq(580,629))| i == "788"){
+    levels(dades$diag_2)[levels(dades$diag_2) == i] <- "Genitourinary"
+  } else if (i %in% as.character(seq(140,239))){
+    levels(dades$diag_2)[levels(dades$diag_2) == i] <- "Neoplasms"
+  } else{
+    levels(dades$diag_2)[levels(dades$diag_2) == i] <- "Other"
+                                         
+    
+    }
+}
+
+###Diagnòstic 3
+
+
+dades$diag_3 <- as.factor(dades$diag_3)
+cols <- levels(dades$diag_3)
+
+for (i in cols) {
+   if (i %in% as.character(seq(390,459)) | i == "785" ) {
+    levels(dades$diag_3)[levels(dades$diag_3) == i] <- "Circulatory"
+  } else if (i %in% as.character(seq(460,519))| i == "786"){
+     levels(dades$diag_3)[levels(dades$diag_3) == i] <- "Respiratory" 
+  } else if (i %in% as.character(seq(520,579))| i == "787"){
+    levels(dades$diag_3)[levels(dades$diag_3) == i] <- "Digestive"
+  } else if (i %in% diag_diabet){
+    levels(dades$diag_3)[levels(dades$diag_3) == i] <- "Diabetes"
+  } else if (i %in% as.character(seq(800,999))){
+    levels(dades$diag_3)[levels(dades$diag_3) == i] <- "Injury"
+  } else if (i %in% as.character(seq(710,739))){
+    levels(dades$diag_3)[levels(dades$diag_3) == i] <- "Musculoeskeletal"
+  } else if (i %in% as.character(seq(580,629))| i == "788"){
+    levels(dades$diag_3)[levels(dades$diag_3) == i] <- "Genitourinary"
+  } else if (i %in% as.character(seq(140,239))){
+    levels(dades$diag_3)[levels(dades$diag_3) == i] <- "Neoplasms"
+  } else{
+    levels(dades$diag_3)[levels(dades$diag_3) == i] <- "Other"
+                                         
+    
+    }
+}
+
+# Cada vegada que fem això hem d'indicar que els nivells antics i que no es fan servir s'han d'eliminar
+dades <- droplevels(dades)
+
+#Representem el diagnostic principal per a que es vegi com resulta
+table(dades$diag_1)
+
+```
+\  
+
+Procedim ara de la mateixa manera però amb els camps d'admissió i d'alta.
+
+Per reduir els valors d'aquests camps notem el següent:
+<ol>
+ 1. Es nota que les dades han estat recollides en diferents moments i diferents hospitals i segurament havia criteris diferents. Per exemple a font d'ingrés tenim la identificació "part normal" per nounats, però també "naixement dins l'hospital" i "naixement fora de l'hospital", situacions que no són excloents amb el part normal
+
+2. Els criteris en algun cas reflexen que estem tractant amb dades d'un sistema de salut diferent i resulta difícil entendre si les diferències entre els casos són importants (han de quedar) o si són més subtils i per tant no són necessàries per segons quins estudis.
+
+</ol>
+
+En qualsevol cas en la nostra opinió aquests dos camps tenen massa descriptors i han de ser molt més ser reduits (de fet no tots estan utilitzats a les dades). Per exemple gairebé tots els valors d'alta que no són "alta a casa" són tranferències del pacient a hospitals, residències, alta sota atencions d'enfermeres a casa i similars. Tots aquests valors han de quedar reduits a una sola categoria.
+
+En algun cas hem de prendre decisions subjectives, per exemple, un alta voluntària ("against medical advice" o AMA) com la classifiquem? Són molt pocs casos i hem optat per juntar-la amb les altes però que no són "completes" es a dir que suposen tornar a l'hospital amb cites programades, amb cures externes...
+
+D'altra banda hem d'eliminar els pacients que moren, doncs no els hem de contemplar de cara a la readmissió. També fiquem en aquest grup els pacients que són transferits a una unitat/hospital per pacients terminals ("hospice" a l'original)
+
+De tal manera que ens quedem amb dos grups d'altes: ALTA i ALTRES (on aquest indica que els pacients són donats d'alta amb algun tipus d'atenció o seguiment) i no disponibles
+
+Respecte a la font d'admissió ens quedem amb: Urgències i Programat o Trasllat (que són gairebé tots els altres codis) i també conservem els no disponibles.
+
+```{r}
+#Convertim en factors
+dades$admission_source_id <- as.factor(dades$admission_source_id)
+dades$discharge_disposition_id <- as.factor(dades$discharge_disposition_id)
+
+
+#Procedim de forma semblant a abans
+
+cols = levels(dades$discharge_disposition_id)
+
+for (i in cols) {
+   if (i %in% c("1") ) {
+    levels(dades$discharge_disposition_id)[levels(dades$discharge_disposition_id) == i] <- "Alta"
+  } else if (i %in% c("11", "13", "14","19", "20", "21")){
+     levels(dades$discharge_disposition_id)[levels(dades$discharge_disposition_id) == i] <- "Exitus" 
+  } else if (i %in% c("18", "25")){
+    levels(dades$discharge_disposition_id)[levels(dades$discharge_disposition_id) == i] <- "No disponible"
+  } else{
+    levels(dades$discharge_disposition_id)[levels(dades$discharge_disposition_id) == i] <- "Altres"
+                                         
+    
+    }
+}
+
+#Eliminem les observacions corresponents als morts
+dades <- dades[dades$discharge_disposition_id != "Exitus", ]
+
+cols = levels(dades$admission_source_id)
+
+for (i in cols){
+  if (i %in% c("7")){
+    levels(dades$admission_source_id)[levels(dades$admission_source_id) == i] <- "Urgencia"
+  }else if(i %in% c("9", "15", "17", "20", "21")){
+    levels(dades$admission_source_id)[levels(dades$admission_source_id) == i] <- "No disponible"
+  }else{
+    levels(dades$admission_source_id)[levels(dades$admission_source_id) == i] <- "Programat_Trasllat"
+  }
+}
+
+
+#Recordem que eliminar els valors no els elimina dels nivells, hem de eliminarl-los explicitament
+
+dades <- droplevels(dades)
+
+```
+
+
+```{r}
+
+#Comprovem els nivells que tenim ara i la suma dels dos
+
+unique(dades$discharge_disposition_id)
+unique(dades$admission_source_id)
+
+
+b <- sum(dades$admission_source_id == "No disponible")
+c <- sum(dades$admission_type_id == "No disponible")
+
+print(sprintf("El valors catalogats com a no disponibles entre els dos grups són: %i", b+c))
+```
+
+
+\  
+
+
+### Revisió de les dades
+
+Fins ara només ens hem centrat en revisar valors buits, llevar dades (atributs i registres) que a priori no semblen rellevants i/o pertinents i a reduir el nombre de categories, però encara no hem fet un cop d'ull a les dades, per dir-ho d'alguna manera.
+
+Comencem revisant les dades que tenim hores d'ara
+
+```{r}
+str(dades)
+```
+
+
+Passem a factor les variables que encara ens queden com a caràcter
+
+```{r}
+cols <- c("race", "gender", "age", "A1Cresult", "insulin", "change", "diabetesMed", "readmitted")
+for(i in cols){
+  dades[,i] <- as.factor(dades[,i])
+}
+str(dades[,cols])
+```
+
+__VARIABLE OBJECTIU__
+
+A continuació examinem el camp __readmitted__ per veure com s'agrupen els valors
+
+```{r}
+table(dades$readmitted)
+```
+
+Observem que tenim molt pocs valors per a la readmissió en menys de 30 dies, cosa que segurament dificultarà una bona predicció per part dels models.
+
+Aprofitarem per crear dues variables binàries per si resulten d'utilitat en l'elaboració dels models. Una que ens doni 1 si el pacient és admès en menys de 30 i 0 en cas contrari i una altra que ens doni 1 si el pacient és readmés en menys d'un any (grup "<30" i ">30") i zero si no ho és.
+
+```{r}
+dades$readmittedMES <- as.factor(ifelse(dades$readmitted == "<30", 1, 0))
+dades$readmittedANY <- as.factor(ifelse(dades$readmitted == "NO", 0, 1))
+
+
+
+perc <- sum(dades$readmittedMES == 1)/nrow(dades)
+
+print(sprintf("El percentatge de pacients que reingressen en menys d'un MES es: %.2f%%", perc*100))
+
+perc <- sum(dades$readmittedANY == 1)/nrow(dades)
+
+print(sprintf("El percentatge de pacients que reingressen en menys d'un ANY es: %.2f%%", perc*100))
+
+```
+\  
+
+Comprovem com gairebé no tenim pacients que reingressen en menys d'un mes, mentre que pel total dels que reingressen en menys d'un any les dades estan més equilibrades.
+
+
+Anem a veure com es comporten algunes de la resta de variables en funció d'aquesta
+
+__GÈNERE__
+
+```{r}
+p1 <- ggplot(dades, aes(x = gender, fill = readmitted)) + geom_bar()+ ggtitle("Edat i readmissió") 
+
+p2 <- ggplot(dades, aes(x = gender, fill = readmitted)) + geom_bar(position = "fill")+ ggtitle("Edat i readmissió:Freqüència") + ylab("Freqüència")
+
+grid.arrange(p1,p2)
+```
+\  
+
+Notem com sembla que la proporció de readmesos sembla la mateixa en homes que en dones. Aquesta serà una de les hipòtesis que comprovarem en el punt següent.
+
+__RAÇA__
+
+Si recordem tenim alguns valors desconeguts en aquesta variable. Mirem la quantitat de valors que tenim en cada una de les races
+
+```{r}
+table(dades$race)
+```
+
+\  
+
+Com es pot apreciar les etines que diferent de blanca i negre tenen una presència més aviat testimonial. Juntarem totes aquestes i els valors desconeguts en la categoria "Other"
+
+```{r}
+
+dades$race[dades$race == "Asian" | dades$race == "desconegut" | dades$race == "Hispanic"] <- "Other"
+
+dades <- droplevels(dades)
+
+```
+
+Representem ara la raça comparant-la amb la variable "readmitted" igual que amb sexe
+
+```{r}
+p1 <- ggplot(dades, aes(x = race, fill = readmitted)) + geom_bar()+ ggtitle("Raça i readmissió") 
+
+p2 <- ggplot(dades, aes(x = race, fill = readmitted)) + geom_bar(position = "fill")+ ggtitle("Raça i readmissió:Freqüència") + ylab("Freqüència")
+
+grid.arrange(p1,p2)
+```
+\  
+
+D'aquí tenim una altra possible hipotesi a comparar que és si la proporció de readmissió és major en alguna de les races.
+
+__EDAT__
+
+
+Representem els valors de la variable edat
+```{r}
+ggplot(dades, aes(age, fill =readmitted))+geom_bar()+ggtitle("Edat i readmissió")
+```
+
+\  
+
+Com era d'esperar hi ha més persones a mesura que l'edat puja fins al segment de 70 a 80 anys, moment en que comença a davallar la quantitat ja que hi ha menys població dins aquest grup d'edat.
+
+__A1Cresult__
+
+En aquest camp tenim la prova de l'hemoglobina glicosilada que és una prova que es fa als pacients per conèixer si el control de la diabetis és el correcte.
+
+Si mirem el percentatge de proves que s'han realitzat al conjunt dels pacients que tenim:
+
+```{r}
+round(100*sum(dades$A1Cresult != "None")/nrow(dades),2)
+```
+\
+
+Veiem que la prova només s'ha fet a un 18.36 % dels pacients. Tot i que no és una prova necessària en un pacient agut, als hospitals Espanyols sí que es du a terme quan s'ingressa a un pacient diabètic.
+
+Resulta molt curiós que aquest joc de dades sigui sobre pacients diabètics i la mesura de la glucosa l'haguem descartada (tenia variació gairebé zero) i la de la prova de l'hemobglobina glicosilada només s'hagi realitzat a un percentatge inferior al 20 %.
+
+
+__CAMPS NUMÈRICS__
+
+
+No representem ni retoquem els camps numèrics perquè, tot i que no tots els utilitzarem en l'elaboració dels models els podremm servir per a la comprovació de la normalitat de les dades al següent punt i també per a veure correlaciones entre les variables.
+
+__DESAR L'ARXIU DE DADES__
+
+```{r}
+write.csv(dades, file = "./data/dadesDiabetis.csv")
+```
+
+## Comprovació de la normalitat i homogeneïtat de la variància
+
+__NORMALITAT__
+
+Representem les nostres variables numèriques abans de fer cap comprovació de normalitat, però abans esmentar que les variables tot i numèriques, no són continues sinó sencerest.
+
+```{r}
+p1 <- ggplot(dades, aes(time_in_hospital)) + geom_bar()
+p2 <- ggplot(dades, aes(num_lab_procedures)) + geom_histogram()
+p3 <- ggplot(dades, aes(num_procedures)) + geom_bar()
+p4 <- ggplot(dades, aes(num_medications)) + geom_histogram()
+p5 <- ggplot(dades, aes(number_diagnoses)) + geom_bar()
+
+grid.arrange(p1, p2, p3, p4, p5)
+
+```
+\  
+
+Simplement observant les gràfiques podem veure que les variables de la columna de l'esquerra no segueixen una distribució normal.
+
+Las variables de la columna de la dreta també tenen biaix cap a un dels costats i per tant segurament no seran normals, però fem servir una gràfica Q-Q per veure si es compleix la normalitat.
+
+```{r}
+par(mfrow = c(1,2))
+qqnorm(dades$num_lab_procedures)
+qqline(dades$num_lab_procedures)
+
+qqnorm(dades$num_medications)
+qqline(dades$num_medications)
+
+```
+\  
+
+Com havíem anticipat les dues gràfiques es separen significativement de la línea en els extrems i per tant tampoc podríem considerar que aquestes variables segueixen una distribució normal.
+
+
+__HOMOGENEITAT DE LA VARIÀNCIA__
+
+En el nostre cas no hi ha lloc a comprovar aquesta homogeneïtat donat que no compararem grups de variables numèriques.
+
+
+
+## Proves estadístiques.
+
+### Correlació entre variables numèriques
+
+Aprofitarem per veure si tenim c orrelació entre les variables numèriques, més dies a l'hospital impliquen més procediments? o més medicacions?
+
+```{r}
+library(corrplot)
+dades_numeriques <- select(dades, c("num_lab_procedures", "num_procedures", "num_medications", "number_diagnoses",
+                                    "time_in_hospital") )
+correlacions <- cor(dades_numeriques)
+
+corrplot.mixed(correlacions, upper = "circle", number.cex = 1.1, tl.cex = .6)
+
+
+```
+\  
+
+Observem que la correlació més important és entre el temps a l'hospital i el nombre de medicacions, tot i així no arriba a 0.5. El que sí s'observa és que totes les correlacions són positives com sembla lògic.
+
+
+
+### És major la proporció d'homes o dones que reingressen?
+
+Volem saber si s'observen diferències per sexe en la taxa de reingrés. Abans de fer res observem els percentatges de cada cas.
+
+```{r}
+
+#Separem les dades en fos dataframes, perquè els necessitarem després
+dHomes <- dades[dades$gender == "Male",]
+dDones <- dades[dades$gender == "Female", ]
+
+pHomes <- sum(dHomes$readmittedMES == 1)/nrow(dHomes)
+pDones <- sum(dDones$readmittedMES == 1)/nrow(dDones)
+
+print(sprintf(" El percentatge d'homes que reingressen en menys de 30 dies és: %.2f%%", pHomes*100))
+print(sprintf(" El percentatge de dones que reingressen en menys de 30 dies és: %.2f%%", pDones*100))
+
+pHomes <- sum(dHomes$readmittedANY == 1)/nrow(dHomes)
+pDones <- sum(dDones$readmittedANY == 1)/nrow(dDones)
+
+print(sprintf(" El percentatge d'homes que reingressen en menys d'un any és: %.2f%%", pHomes*100))
+print(sprintf(" El percentatge de dones que reingressen en menys d'un anys és: %.2f%%", pDones*100))
+
+
+```
+\  
+
+Tant en el cas de reingrés en menys d'un mes com en el de més d'un any la diferència de percentatges és molt petita, però superior per les dones. Hem de recordar que tenim un nombre molt elevat de dades, i això podria fer que tot i petita la diferència fos estadísticament significativa.
+
+Fem un test d'hipotesis per comprovar si la proporció de dones que reingressen és superior la dels els homes amb un nivell de confiança del 95 %:
+
+$$H_0:\ \ p_{dones} \ = \  p_{homes} $$
+$$H_1:\ \ p_{dones} \ > \  p_{homes} $$
+
+Farem el test tant pel cas de reingrés en un mes com en un any.
+
+__CAS 1 MES__
+
+```{r}
+nHomes <- nrow(dHomes)
+nDones <- nrow(dDones)
+
+pHomes <- sum(dHomes$readmittedMES == 1)/nHomes
+pDones <- sum(dDones$readmittedMES == 1)/nDones
+
+success <- c(pDones*nDones, pHomes*nHomes )
+nn <- c(nDones, nHomes)
+
+prop.test(success,nn, alternative = "greater", correct = FALSE)
+
+
+
+
+```
+\  
+
+En aquest cas veiem que p > 0.05 i que per tant no podem rebutjar la hipòtesi nul·la. Es a dir, no podem concloure que en menys d'un mes reingressen mes dones..
+
+__CAS 1 ANY__
+
+```{r}
+
+
+pHomes <- sum(dHomes$readmittedANY == 1)/nHomes
+pDones <- sum(dDones$readmittedANY == 1)/nDones
+
+success <- c(pDones*nDones, pHomes*nHomes )
+nn <- c(nDones, nHomes)
+
+prop.test(success,nn, alternative = "greater", correct = FALSE)
+
+
+
+
+```
+\  
+
+Per contra, pel cas d'un any, veiem que podem refusar la hipòtesi nul·la i concloure que la proporció de dones que reingressen és major.
+
+### És millor mesurar l'hemoglobina glicosilada o no?
+
+Com es tracta de pacients diabètics, una de les mesures més importants que podem fer amb aquest joc de dades és si el control de la malaltia afecta a la taxa de reingrés. 
+La forma de revisar si la diabetis està ben controlada pel pacient és amb la prova de l'hemoglobina glicosilada o HbA1c.
+
+Podem repetir un test d'hipòtesi semblant a l'anterior però ara mirant si la proporció de pacients als quals se'ls ha fet la prova i que reingressen és menor que aquells que no.
+
+
+
+$$H_0:\ \ p_{HbA1c} \ = \  p_{No\_HbA1c} $$
+$$H_1:\ \ p_{HbA1c} \ < \  p_{No\_HbA1c} $$
+```{r}
+# Procedim de forma semblant. Primer separem les dades en dos dataframes
+
+dA1C <- dades[dades$A1Cresult != "None",]
+dNone <- dades[dades$A1Cresult == "None",]
+
+
+
+pA1C <- sum(dA1C$readmittedMES == 1)/nrow(dA1C)
+pNone <- sum(dNone$readmittedMES == 1)/nrow(dNone)
+
+print(sprintf("La proporcio de pacient que reingressen al mes i que SÍ tenen la prova feta és: %.2f%%", pA1C*100))
+print(sprintf("La proporcio de pacient que reingressen al mes i que NO tenen la prova feta és: %.2f%%", pNone*100))
+```
+\  
+
+Veiem que al igual que abans la diferència és molt petita però podem fer el test i comprovar-ho
+
+```{r}
+
+exit <- c(sum(dA1C$readmittedMES == 1), sum(dNone$readmittedMES == 1))
+numeros <- c(nrow(dA1C), nrow(dNone))
+prop.test(exit, numeros, alternative = "less", correct = FALSE)
+
+```
+\  
+
+Obtenim un p < 0.05 i podem rebutjar la hipòtesi nul·la i concloure que la proporció de pacients que reingressen en un mes és menor si durant la seva estança s'ha fet aquesta prova.
+
+Recordar que en tractar-se d'un estudi observacional no podem assignar una relació causa-efecte, per tant, ens hem d'abstenir d'assegurar res d'aquesta associació estadística.
+
+
+
+
+### MODEL DE REGRESSIÓ LOGíSTICA
+
+Provarem ara un model de regressió logística que ens doni una probabilitat de ser readmes, en menys d'un mes i en menys d'un any.
+
+__MODEL READMISSIÓ EN UN MES__
+
+Abans de fer el model separem les mostres en una mostra d'entrenament i una altra de test fent servir la funció *createDataPartition* del paquet *caret*, que ja ens distribuix la variable a predir de forma equiibrada entre les dues mostres. Com tenim moltes dades ens reservem només el 65 % per l'entrenament
+
+```{r}
+intrain <- createDataPartition(y = dades$readmittedMES, p = 0.65, list = F)
+train <- dades[intrain,]
+test <- dades[-intrain,]
+
+
+```
+\
+
+Per realitzar el model tenim moltes variables que podem incloure i s'hauria de fer una exploració entre les diferents combinacions i anar provant diferents interaccions entre variables. A la bilbiografia (James et al.) s'assenyala que hi ha 3 mètodes habituals: selecció cap endavant (*forward selection*, començar sense variables i anar afegint), selecció cap enrera (*backward selection*, el contrari que l'anterior cas) i seleccio barrejada (*mixed selection*, combinació del anteriors).
+
+Nosaltres hem considerat que l'objectiu de la pràctica no era tant trobar el millor model com provar i triar els adequats al joc de dades, i que, per tant, l'exploració exhaustiva de les diferents combinacions quedava fora de l'abast de la pràctica. Hem fet algunes proves i ens quedem amb una combinació prou bona
+
+(Nota: Gairebé no hem explorat termes d'interacció, i no s'inclou cap)
+
+
+
+
+
+```{r}
+
+
+model.Log.MES <- glm(readmittedMES ~ gender+race + age + +A1Cresult +diag_1 + discharge_disposition_id+ num_lab_procedures+num_medications, data = train, family = binomial)
+
+
+
+summary(model.Log.MES)
+
+```
+\  
+
+Notem que el valor p es superior a 0.05 en gairebé tots els factors, cosa que segurament indica que el model no resulta gaire bó.
+
+Veiem en una taula els resultats del model amb les dades del conjunt d'entrenament. Triem un valor del 50 % per decidir si classifiquem un resultat com postitiu o negatiu
+
+```{r}
+tb <- table(predict(model.Log.MES, data = train, type = "response") > 0.5, train$readmittedMES)
+
+tb
+
+```
+\  
+
+El model ens classifica TOTS els valors com no reingrés, cosa que farà que la seva precisió sigui del voltant del 90% ja que només un 10 % reingressa.
+
+```{r}
+
+prec <- sum(diag(tb))/nrow(train)
+
+print(sprintf("La precisió del model és: %.2f%%", prec*100))
+```
+\  
+
+Si fem el mateix però amb les dades de test
+
+```{r}
+
+prediccio <- predict(model.Log.MES, test, type = "response")
+
+tb <- table(prediccio > 0.5, test$readmittedMES)
+
+tb
+
+prec <- sum(diag(tb))/nrow(test)
+
+print(sprintf("La precisió del model és: %.2f%%", prec*100))
+
+
+```
+\  
+
+Obtenim una precisió molt semblant a l'anterior.
+
+_NOTEM_ com ja hem assenyalat que aquest model no ens aporta res. Si classifiquem tots els casos com de NO reingrés tendrem el mateix encert que el model.
+
+__MODEL READMISSIÓ EN UN ANY__
+
+
+```{r}
+
+#Tornem a crear els conjunts d'entenament i de test per a que el criteri d'estratificacio sigui la nova variable
+intrain <- createDataPartition(y = dades$readmittedANY, p = 0.65, list = F)
+train <- dades[intrain,]
+test <- dades[-intrain,]
+
+model.Log.ANY <- glm(readmittedANY ~ gender + race + age + A1Cresult + diag_1 + discharge_disposition_id+num_lab_procedures+num_medications, data = train, family = binomial)
+
+
+
+summary(model.Log.ANY)
+
+
+```
+\  
+
+Veiem que en aquesta ocasió tenim molts més coeficients amb p < 0.05, de fet gairebé tots. Notar com la variable sexe ara sí té un p <0.05, recordar que en el test d'hipòetis havíem vist com el percentatge de reingrés entre homes i dones era diferent pel cas d'un any.
+
+Ara fem la taula amb els valors igual que abans, fixem un limit del 50 % en el criteri de separació.
+
+Pel conjunt de dades de train la nostra precisió és:
+
+```{r}
+tb <- table(predict(model.Log.ANY, data = train, type = "response") > 0.5, train$readmittedANY)
+
+tb
+
+prec <- sum(diag(tb))/nrow(train)
+
+print(sprintf("La precisió del model és: %.2f%%", prec*100))
+
+```
+\  
+
+Mentre que pel nostre conjunt de test serà
+
+```{r}
+
+prediccio <- predict(model.Log.ANY, test, type = "response")
+
+tb <- table(prediccio > 0.5, test$readmittedANY)
+
+tb
+
+prec <- sum(diag(tb))/nrow(test)
+
+print(sprintf("La precisió del model és: %.2f%%", prec*100))
+
+
+```
+\  
+
+Comprovem que la precisió del model és tampoc és bona i difícilment podem predir la taxa de reingrés amb aquest model.
+
+Tot i que ja sabem que el model no és gaireb bó fem la representació de la corba roc fent servir *roc()* del paquet *pROC* i calculem l'àrea sota la corba
+
+```{r}
+r <- pROC::roc(train$readmittedANY, predict(model.Log.ANY, data = train, type = "response"), data = train)
+plot(r)
+pROC::auc(r)
+```
+\  
+
+La corba està molt aprop de la diagonal indicant el que ja hem comentat de que el model no és gaire bó. I el valor de AUC és proper a 0.5
+
+### ARBRES DE DECISIÓ - RANDOM FOREST
+
+El model random Forest es basa en crear tot un conjunt d'arbres de decisió (d'aquí el nom de forest o bosc) i promitjar el resultat entre ells.
+
+
+Seleccionem les mateixes dades que abans per tal de poder comparar una mica els models i dividim les dades en entrenament i test
+
+```{r}
+
+dades_RF <- select(dades, c("gender", "race", "age", "A1Cresult", "diag_1", "discharge_disposition_id",
+                            "num_lab_procedures", "num_medications", "readmittedMES"))
+
+
+intrain <- createDataPartition(y = dades_RF$readmittedMES, p = 0.65, list = F)
+train <- dades_RF[intrain,]
+test <- dades_RF[-intrain,]
+
+model.RF.1 <- randomForest(train$readmittedMES ~., data = train, importante = TRUE, ntree = 30)
+
+```
+```{r}
+model.RF.1
+```
+\  
+
+Veiem que l'error calculat és del 9.02%. (Molt breument, OOB o One out of Bag és un sistema en el qual les files de de les dades que no s'han fet servir en un arbre es fan servir com a test de l'arbre en qüestió i d'altres en les que no s'ha fet servir.)
+
+Fem la taula completa de predicció sobre les dades d'entrenament.
+
+```{r}
+
+#Com ara tractem de predir una classe hem de posar "class" a type
+predTrain <- predict(model.RF.1, train, type = "class")
+table(predTrain, train$readmittedMES)
+```
+\  
+
+I ara sobre el joc de dades de test
+
+```{r}
+predTest <- predict(model.RF.1, test, type = "class")
+pred <- sum(predTest == test$readmittedMES)/nrow(test)
+table(predTest, test$readmittedMES)
+
+
+print(sprintf("La precisió del model és: %.2f%%", pred*100))
+```
+\
+
+La precisió que obtenim és semblant a la de la regresió logística i és semblant a la que obtendríem si decidissim classificar tots els casos com a no-readmesos, per tant, no guanyem gaire.
+
+Com no es tracta d'un arbre sinó d'un sistema que fa servir diversos arbres, resulta difícil representar-ho gràficament, per això fem una representació de la importància de les diferents variables, segons el criteri de promig de decreixement en l'índex de GINI 
+
+
+```{r}
+
+# Becessitem reordenar les dades com un dataframe per poder fer la gràfica
+df <- as.data.frame(model.RF.1$importance)
+df$nomsVar <- rownames(df)
+rownames(df) <- NULL
+
+## Fem la gràfica
+ggplot(df, aes(x = reorder(nomsVar, MeanDecreaseGini) , weight = MeanDecreaseGini))+
+  geom_bar(aes(fill = MeanDecreaseGini), show.legend = FALSE)+
+   theme(axis.text.x = element_text(angle = 90, vjust = 0.7), 
+        plot.title = element_text(hjust = 0.5, face = "bold"))+
+  labs(title = "IMPORTÀNCIA DE LES VARIABLES", x = "Variables", y = "Valors")
+
+
+
+```
+\  
+
+Segons les dades tenim que les variables més importants són el nombre de proves de laboratori i de medicacions, amb bastant diferència.
+
+# Conclusions
+
+
+# Bibliografia
+
+__Beata Strack, Jonathan P. DeShazo, Chris Gennings, et al.__, “Impact of HbA1c Measurement on Hospital Readmission Rates: Analysis of 70,000 Clinical Database Patient Records,” BioMed Research International, vol. 2014, Article ID 781670, 11 pages, 2014. https://doi.org/10.1155/2014/781670.
+
+
+__Bernadó, Ester__, "Disseny experimental en analítica de dades" (UOC)
+
+
+__James, G., Witten, D., Hastie, T., Tibshirani, R.__ "An Introduction to Statistical Learning with Applications in R".Springer Texts in Statistics.Springer.2013
+
+
+
+
