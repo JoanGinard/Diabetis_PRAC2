@@ -6,18 +6,18 @@
 ## PROJECTE
 Aquest treball correspon a una pràctica de l'assignatura _Tipologia i cicle de vida de les dades_ de la __UOC__
 
-L'objectiu de la pràctica és *************************************************
+L'objectiu de la pràctica és realitzar el tractament d'aquest joc de dades amb l'objectiu d'extreure informació rellevant del mateix, realitzar test estadístics i models.
 
 
 ## MEMBRES DE L'EQUIP
 (en ordre alfabètic)
-1. Joan Ginard Illescas (té dos usuaris JoanGinard, creat per aquesta pràctica i Lordofthe0s, que era un usuari anterior i des del qual s'han pujat alguns arxius des del repositori local)
+1. Joan Ginard Illescas
 2. Miquel Piña Grau
 
 ## FITXERS DEL REPOSITORI
 
-1. EstudiDiabetis.Rmd: Arxiu en R markdown amb les comandes de R i els comentaris i a partir del qual es genera l'informe en PDF.
-2. EstudiDiabetis.pdf: Informe de la pràctica propiament dit
+1. *EstudiDiabetis.Rmd*: Arxiu en R markdown amb les comandes de R i els comentaris i a partir del qual es genera l'informe en PDF.
+2. *EstudiDiabetis.pdf* i *EstudiDiabetis.pdf*: Informe de la pràctica propiament dit en format pdf i html
 3. dadesDiabetis.csv: Arxiu csv amb les dades ja netejades i preparades per a la part d'anàlisi.
 
 __Dins la carpeta dataset_diabetes__
@@ -27,5 +27,14 @@ __Dins la carpeta dataset_diabetes__
 
 ## ORIGEN DE LES DADES
 
+Les dades es troben per primera vegada en aquest article:
+
+__Beata Strack, Jonathan P. DeShazo, Chris Gennings, et al.__, “Impact of HbA1c Measurement on Hospital Readmission Rates: Analysis of 70,000 Clinical Database Patient Records,” BioMed Research International, vol. 2014, Article ID 781670, 11 pages, 2014. https://doi.org/10.1155/2014/781670.
+
 ## BIBLIOGRAFIA
+A banda de la bilbiografia proporcionada amb l'enunciat i de l'article anterior també hem fet servir:
+
+__Bernadó, Ester__, "Disseny experimental en analítica de dades" (PID_00247922).UOC.
+
+__James, G., Witten, D., Hastie, T., Tibshirani, R.__ "An Introduction to Statistical Learning with Applications in R".Springer Texts in Statistics.Springer.2013
 
