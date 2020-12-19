@@ -1192,7 +1192,6 @@ Hi ha diversos motius que poden explicar això:
 
 
 
-
 # Bibliografia
 
 A més de la proposada a l'enunciat de la pràctica.
@@ -1208,3 +1207,5 @@ __James, G., Witten, D., Hastie, T., Tibshirani, R.__ "An Introduction to Statis
 
 
 
+
+![Taula d'elaboració]("./taula.png")
