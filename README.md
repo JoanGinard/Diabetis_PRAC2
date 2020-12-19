@@ -17,8 +17,8 @@ L'objectiu de la pràctica és realitzar el tractament d'aquest joc de dades amb
 ## FITXERS DEL REPOSITORI
 
 1. *EstudiDiabetis.Rmd*: Arxiu en R markdown amb les comandes de R i els comentaris i a partir del qual es genera l'informe en PDF.
-2. *EstudiDiabetis.pdf* i *EstudiDiabetis.pdf*: Informe de la pràctica propiament dit en format pdf i html
-3. dadesDiabetis.csv: Arxiu csv amb les dades ja netejades i preparades per a la part d'anàlisi.
+2. *EstudiDiabetis.pdf*: Informe de la pràctica propiament dit en format pdf
+3. *dadesDiabetis.csv*: Arxiu csv amb les dades ja netejades i preparades per a la part d'anàlisi.
 
 __Dins la carpeta dataset_diabetes__
 
